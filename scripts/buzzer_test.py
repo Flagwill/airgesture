@@ -2,32 +2,38 @@
 import argparse
 import time
 
-from gpiozero import LED
+from gpiozero import PWMOutputDevice
 
 
 def beep(pin, duration):
-    pin.on()
+    pin.value = 0.5
     time.sleep(duration)
-    pin.off()
+    pin.value = 0.0
 
 
 def main():
+    def frequency(value):
+        hz = int(value)
+        if not 2000 <= hz <= 5000:
+            raise argparse.ArgumentTypeError("must be between 2000 and 5000 Hz")
+        return hz
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--pin", type=int, default=12)
+    parser.add_argument("--frequency", type=frequency, default=3000)
     args = parser.parse_args()
 
-    buzzer = LED(args.pin, active_high=False)
-    buzzer.off()
+    buzzer = PWMOutputDevice(args.pin, active_high=False, initial_value=0.0, frequency=args.frequency)
     try:
-        print("double short beep", flush=True)
+        print(f"double short beep at {args.frequency} Hz", flush=True)
         beep(buzzer, 0.08)
         time.sleep(0.08)
         beep(buzzer, 0.08)
         time.sleep(0.5)
-        print("long confirm beep", flush=True)
+        print(f"long confirm beep at {args.frequency} Hz", flush=True)
         beep(buzzer, 0.35)
     finally:
-        buzzer.off()
+        buzzer.value = 0.0
         buzzer.close()
 
 

@@ -4,9 +4,10 @@ import threading
 import time
 
 try:
-    from gpiozero import LED
+    from gpiozero import LED, PWMOutputDevice
 except Exception:
     LED = None
+    PWMOutputDevice = None
 
 
 class RgbLed:
@@ -79,16 +80,18 @@ class RgbLed:
 
 
 class ActiveLowBuzzer:
-    def __init__(self, pin, enabled=True):
-        self.enabled = enabled and LED is not None
+    def __init__(self, pin, enabled=True, frequency=3000):
+        if not 2000 <= frequency <= 5000:
+            raise ValueError("buzzer frequency must be between 2000 and 5000 Hz")
+        self.enabled = enabled and PWMOutputDevice is not None
         self.pin = None
+        self.frequency = frequency
         if self.enabled:
-            self.pin = LED(pin, active_high=False)
-            self.off()
+            self.pin = PWMOutputDevice(pin, active_high=False, initial_value=0.0, frequency=frequency)
 
     def on(self):
         if self.enabled:
-            self.pin.on()
+            self.pin.value = 0.5
 
     def off(self):
         if self.enabled:

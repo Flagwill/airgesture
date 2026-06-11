@@ -30,10 +30,13 @@ Useful options:
 python k230_airgesture_control.py \
   --serial-port /dev/serial0 \
   --baud 115200 \
+  --buzzer-frequency 3000 \
   --ir-codes-file captures/ir05t_codes.jsonl \
   --ir-port /dev/ttyAMA3 \
   --port 8081
 ```
+
+The buzzer output is a 50% duty PWM square wave for passive buzzers without an internal oscillator. Use `--buzzer-frequency` to set 2000-5000 Hz; the default is 3000 Hz.
 
 The web UI is served at `http://<host>:8081/`. Runtime actions are logged to `airgesture_actions.log` by default; override this with `--log-path`.
 
@@ -46,5 +49,6 @@ python scripts/ir05t_capture.py --duration 10
 python scripts/ir05t_emit.py --index -1
 python scripts/pi_k230_receiver.py
 python scripts/rgb_led_test.py
+python scripts/buzzer_test.py --frequency 3000
 ./run_env_check.sh
 ```
