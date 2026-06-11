@@ -59,6 +59,7 @@ class AirGestureControlApp:
             args.buzzer_pin,
             enabled=not args.no_buzzer,
             frequency=args.buzzer_frequency,
+            driver=args.buzzer_driver,
         )
         self.ir = IRCodeLibrary(args.ir_codes_file, args.ir_port, args.ir_baud, enabled=not args.no_ir)
         with self.state_lock:
@@ -182,6 +183,7 @@ def build_parser():
     parser.add_argument("--no-led", action="store_true")
     parser.add_argument("--buzzer-pin", type=int, default=12)
     parser.add_argument("--buzzer-frequency", type=buzzer_frequency, default=3000)
+    parser.add_argument("--buzzer-driver", choices=("auto", "lgpio", "pigpio", "gpiozero", "off"), default="auto")
     parser.add_argument("--no-buzzer", action="store_true")
     parser.add_argument("--ir-codes-file", default="captures/ir05t_codes.jsonl")
     parser.add_argument("--ir-port", default="/dev/ttyAMA3")

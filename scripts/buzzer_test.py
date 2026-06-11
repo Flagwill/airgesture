@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 import argparse
+import sys
 import time
+from pathlib import Path
 
-from gpiozero import PWMOutputDevice
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from airgesture.hardware import ActiveLowBuzzer
 
 
 def beep(pin, duration):
-    pin.value = 0.5
+    pin.on()
     time.sleep(duration)
-    pin.value = 0.0
+    pin.off()
 
 
 def main():
@@ -21,10 +25,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pin", type=int, default=12)
     parser.add_argument("--frequency", type=frequency, default=3000)
+    parser.add_argument("--driver", choices=("auto", "lgpio", "pigpio", "gpiozero", "off"), default="auto")
     args = parser.parse_args()
 
-    buzzer = PWMOutputDevice(args.pin, active_high=False, initial_value=0.0, frequency=args.frequency)
+    buzzer = ActiveLowBuzzer(args.pin, frequency=args.frequency, driver=args.driver)
     try:
+        if not buzzer.enabled:
+            raise SystemExit("buzzer is disabled; no PWM driver could be opened")
         print(f"double short beep at {args.frequency} Hz", flush=True)
         beep(buzzer, 0.08)
         time.sleep(0.08)
@@ -33,7 +40,6 @@ def main():
         print(f"long confirm beep at {args.frequency} Hz", flush=True)
         beep(buzzer, 0.35)
     finally:
-        buzzer.value = 0.0
         buzzer.close()
 
 

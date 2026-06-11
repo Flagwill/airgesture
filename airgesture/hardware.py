@@ -10,6 +10,76 @@ except Exception:
     PWMOutputDevice = None
 
 
+class LgpioPwmPin:
+    def __init__(self, pin, frequency, active_low=True):
+        import lgpio
+
+        self.lgpio = lgpio
+        self.pin = pin
+        self.frequency = frequency
+        self.off_level = 1 if active_low else 0
+        self.chip = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_output(self.chip, pin, self.off_level)
+
+    def on(self):
+        self.lgpio.tx_pwm(self.chip, self.pin, self.frequency, 50)
+
+    def off(self):
+        try:
+            self.lgpio.tx_pwm(self.chip, self.pin, 0, 0)
+        finally:
+            self.lgpio.gpio_write(self.chip, self.pin, self.off_level)
+
+    def close(self):
+        self.off()
+        self.lgpio.gpiochip_close(self.chip)
+
+
+class PigpioHardwarePwmPin:
+    def __init__(self, pin, frequency, active_low=True):
+        import pigpio
+
+        self.pigpio = pigpio
+        self.pi = pigpio.pi()
+        if not self.pi.connected:
+            raise RuntimeError("pigpio daemon is not running")
+        self.pin = pin
+        self.frequency = frequency
+        self.off_level = 1 if active_low else 0
+        self.pi.set_mode(pin, pigpio.OUTPUT)
+        self.pi.write(pin, self.off_level)
+
+    def on(self):
+        self.pi.hardware_PWM(self.pin, self.frequency, 500000)
+
+    def off(self):
+        try:
+            self.pi.hardware_PWM(self.pin, 0, 0)
+        finally:
+            self.pi.write(self.pin, self.off_level)
+
+    def close(self):
+        self.off()
+        self.pi.stop()
+
+
+class GpiozeroPwmPin:
+    def __init__(self, pin, frequency, active_low=True):
+        if PWMOutputDevice is None:
+            raise RuntimeError("gpiozero PWMOutputDevice is not available")
+        self.device = PWMOutputDevice(pin, active_high=not active_low, initial_value=0.0, frequency=frequency)
+
+    def on(self):
+        self.device.value = 0.5
+
+    def off(self):
+        self.device.value = 0.0
+
+    def close(self):
+        self.off()
+        self.device.close()
+
+
 class RgbLed:
     def __init__(self, red_pin, green_pin, blue_pin, active_high=True, enabled=True):
         self.enabled = enabled and LED is not None
@@ -80,18 +150,52 @@ class RgbLed:
 
 
 class ActiveLowBuzzer:
-    def __init__(self, pin, enabled=True, frequency=3000):
+    def __init__(self, pin, enabled=True, frequency=3000, driver="auto"):
         if not 2000 <= frequency <= 5000:
             raise ValueError("buzzer frequency must be between 2000 and 5000 Hz")
-        self.enabled = enabled and PWMOutputDevice is not None
+        self.enabled = False
         self.pin = None
         self.frequency = frequency
-        if self.enabled:
-            self.pin = PWMOutputDevice(pin, active_high=False, initial_value=0.0, frequency=frequency)
+        self.driver = "disabled"
+        self._thread = None
+        self._stop_event = threading.Event()
+        if enabled:
+            self._open_pin(pin, frequency, driver)
+
+    def _open_pin(self, pin, frequency, driver):
+        drivers = {
+            "lgpio": LgpioPwmPin,
+            "pigpio": PigpioHardwarePwmPin,
+            "gpiozero": GpiozeroPwmPin,
+        }
+        if driver == "off":
+            return
+        if driver == "auto":
+            candidates = ("lgpio", "pigpio")
+        else:
+            candidates = (driver,)
+
+        errors = []
+        for name in candidates:
+            pin_class = drivers.get(name)
+            if pin_class is None:
+                errors.append(f"{name}: unknown driver")
+                continue
+            try:
+                self.pin = pin_class(pin, frequency, active_low=True)
+            except Exception as exc:
+                errors.append(f"{name}: {exc!r}")
+                continue
+            self.enabled = True
+            self.driver = name
+            return
+
+        if errors:
+            print("Buzzer disabled; PWM driver unavailable: " + "; ".join(errors), flush=True)
 
     def on(self):
         if self.enabled:
-            self.pin.value = 0.5
+            self.pin.on()
 
     def off(self):
         if self.enabled:
@@ -100,15 +204,23 @@ class ActiveLowBuzzer:
     def pattern(self, items):
         if not self.enabled:
             return
-        threading.Thread(target=self._run_pattern, args=(items,), daemon=True).start()
+        self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=0.02)
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._run_pattern, args=(items,), daemon=True)
+        self._thread.start()
 
     def _run_pattern(self, items):
         for active, duration in items:
+            if self._stop_event.is_set():
+                break
             if active:
                 self.on()
             else:
                 self.off()
-            time.sleep(duration)
+            if self._stop_event.wait(duration):
+                break
         self.off()
 
     def activated(self):
@@ -121,6 +233,9 @@ class ActiveLowBuzzer:
         self.pattern([(True, 0.12)])
 
     def close(self):
+        self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=0.1)
         self.off()
         if self.enabled:
             self.pin.close()
