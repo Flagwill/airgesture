@@ -3,8 +3,8 @@
 Capture IR codes from IR05T learning module and store as JSONL.
 
 Usage examples:
-  python ir05t_capture.py --port /dev/ttyAMA3 --baud 9600 --out captures/ir05t_codes.jsonl --duration 10
-  python ir05t_capture.py --port /dev/ttyAMA3 --baud 9600 --channel 1 --duration 15
+  python scripts/ir05t_capture.py --port /dev/ttyAMA3 --baud 9600 --out captures/ir05t_codes.jsonl --duration 10
+  python scripts/ir05t_capture.py --port /dev/ttyAMA3 --baud 9600 --channel 1 --duration 15
 
 Protocol (partial):
   - Enter learning:  FD FD F1 F2 DF  -> reply: FD FD +232 bytes + DF DF

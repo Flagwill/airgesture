@@ -3,8 +3,8 @@
 Send learned IR codes (from captures JSONL) via IR05T module.
 
 Usage examples:
-  python ir05t_emit.py --port /dev/ttyAMA3 --baud 9600 --file captures/ir05t_codes.jsonl --index -1
-  python ir05t_emit.py --port /dev/ttyAMA3 --baud 9600 --file captures/ir05t_codes.jsonl --channel 1
+  python scripts/ir05t_emit.py --port /dev/ttyAMA3 --baud 9600 --file captures/ir05t_codes.jsonl --index -1
+  python scripts/ir05t_emit.py --port /dev/ttyAMA3 --baud 9600 --file captures/ir05t_codes.jsonl --channel 1
 
 Modes:
   - raw (default): read entry payload and send FD FD +payload+ DF DF
@@ -37,8 +37,7 @@ def load_entries(path: Path):
 
 
 def parse_payload_bytes(entry):
-    # prefer payload_hex field (space separated hex bytes)
-    ph = entry.get("payload_hex") or entry.get("payload_hex")
+    ph = entry.get("payload_hex")
     if ph:
         parts = [p for p in ph.split() if p]
         try:
