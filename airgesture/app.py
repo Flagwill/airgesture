@@ -60,6 +60,7 @@ class AirGestureControlApp:
             enabled=not args.no_buzzer,
             frequency=args.buzzer_frequency,
             driver=args.buzzer_driver,
+            duty_cycle=args.buzzer_duty_cycle,
         )
         self.ir = IRCodeLibrary(args.ir_codes_file, args.ir_port, args.ir_baud, enabled=not args.no_ir)
         with self.state_lock:
@@ -171,6 +172,12 @@ def build_parser():
             raise argparse.ArgumentTypeError("must be between 2000 and 5000 Hz")
         return frequency
 
+    def buzzer_duty_cycle(value):
+        duty_cycle = int(value)
+        if not 1 <= duty_cycle <= 99:
+            raise argparse.ArgumentTypeError("must be between 1 and 99 percent")
+        return duty_cycle
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8081)
@@ -183,6 +190,7 @@ def build_parser():
     parser.add_argument("--no-led", action="store_true")
     parser.add_argument("--buzzer-pin", type=int, default=12)
     parser.add_argument("--buzzer-frequency", type=buzzer_frequency, default=3000)
+    parser.add_argument("--buzzer-duty-cycle", type=buzzer_duty_cycle, default=75)
     parser.add_argument("--buzzer-driver", choices=("auto", "lgpio", "pigpio", "gpiozero", "off"), default="auto")
     parser.add_argument("--no-buzzer", action="store_true")
     parser.add_argument("--ir-codes-file", default="captures/ir05t_codes.jsonl")

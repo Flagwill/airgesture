@@ -31,13 +31,14 @@ python k230_airgesture_control.py \
   --serial-port /dev/serial0 \
   --baud 115200 \
   --buzzer-frequency 3000 \
+  --buzzer-duty-cycle 75 \
   --buzzer-driver auto \
   --ir-codes-file captures/ir05t_codes.jsonl \
   --ir-port /dev/ttyAMA3 \
   --port 8081
 ```
 
-The buzzer output is a 50% duty PWM square wave for passive buzzers without an internal oscillator. Use `--buzzer-frequency` to set 2000-5000 Hz; the default is 3000 Hz. Use `--buzzer-driver auto` unless you need to force `lgpio`, `pigpio`, or `gpiozero`; if no PWM driver opens, only the buzzer is disabled and the rest of the service keeps running.
+The buzzer output is a PWM square wave for passive buzzers without an internal oscillator. Use `--buzzer-frequency` to set 2000-5000 Hz; the default is 3000 Hz. The main service defaults `--buzzer-duty-cycle` to 75 for a stronger drive, and you can still tune it in the 50-80 range if needed. Use `--buzzer-driver auto` unless you need to force `lgpio`, `pigpio`, or `gpiozero`; if no PWM driver opens, only the buzzer is disabled and the rest of the service keeps running.
 
 The web UI is served at `http://<host>:8081/`. Runtime actions are logged to `airgesture_actions.log` by default; override this with `--log-path`.
 
@@ -50,6 +51,6 @@ python scripts/ir05t_capture.py --duration 10
 python scripts/ir05t_emit.py --index -1
 python scripts/pi_k230_receiver.py
 python scripts/rgb_led_test.py
-python scripts/buzzer_test.py --frequency 3000 --driver auto
+python scripts/buzzer_test.py --frequency 3000 --duty-cycle 50 --driver auto
 ./run_env_check.sh
 ```

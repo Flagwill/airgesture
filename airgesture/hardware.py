@@ -11,22 +11,23 @@ except Exception:
 
 
 class LgpioPwmPin:
-    def __init__(self, pin, frequency, active_low=True):
+    def __init__(self, pin, frequency, active_low=True, duty_cycle=50):
         import lgpio
 
         self.lgpio = lgpio
         self.pin = pin
         self.frequency = frequency
+        self.duty_cycle = duty_cycle
         self.off_level = 1 if active_low else 0
         self.chip = lgpio.gpiochip_open(0)
         lgpio.gpio_claim_output(self.chip, pin, self.off_level)
 
     def on(self):
-        self.lgpio.tx_pwm(self.chip, self.pin, self.frequency, 50)
+        self.lgpio.tx_pwm(self.chip, self.pin, self.frequency, self.duty_cycle)
 
     def off(self):
         try:
-            self.lgpio.tx_pwm(self.chip, self.pin, 0, 0)
+            self.lgpio.tx_pwm(self.chip, self.pin, self.frequency, 0)
         finally:
             self.lgpio.gpio_write(self.chip, self.pin, self.off_level)
 
@@ -36,7 +37,7 @@ class LgpioPwmPin:
 
 
 class PigpioHardwarePwmPin:
-    def __init__(self, pin, frequency, active_low=True):
+    def __init__(self, pin, frequency, active_low=True, duty_cycle=50):
         import pigpio
 
         self.pigpio = pigpio
@@ -45,12 +46,13 @@ class PigpioHardwarePwmPin:
             raise RuntimeError("pigpio daemon is not running")
         self.pin = pin
         self.frequency = frequency
+        self.duty_cycle = duty_cycle
         self.off_level = 1 if active_low else 0
         self.pi.set_mode(pin, pigpio.OUTPUT)
         self.pi.write(pin, self.off_level)
 
     def on(self):
-        self.pi.hardware_PWM(self.pin, self.frequency, 500000)
+        self.pi.hardware_PWM(self.pin, self.frequency, int(self.duty_cycle * 10000))
 
     def off(self):
         try:
@@ -64,13 +66,14 @@ class PigpioHardwarePwmPin:
 
 
 class GpiozeroPwmPin:
-    def __init__(self, pin, frequency, active_low=True):
+    def __init__(self, pin, frequency, active_low=True, duty_cycle=50):
         if PWMOutputDevice is None:
             raise RuntimeError("gpiozero PWMOutputDevice is not available")
         self.device = PWMOutputDevice(pin, active_high=not active_low, initial_value=0.0, frequency=frequency)
+        self.duty_cycle = duty_cycle
 
     def on(self):
-        self.device.value = 0.5
+        self.device.value = self.duty_cycle / 100.0
 
     def off(self):
         self.device.value = 0.0
@@ -150,12 +153,15 @@ class RgbLed:
 
 
 class ActiveLowBuzzer:
-    def __init__(self, pin, enabled=True, frequency=3000, driver="auto"):
+    def __init__(self, pin, enabled=True, frequency=3000, driver="auto", duty_cycle=50):
         if not 2000 <= frequency <= 5000:
             raise ValueError("buzzer frequency must be between 2000 and 5000 Hz")
+        if not 1 <= duty_cycle <= 99:
+            raise ValueError("buzzer duty cycle must be between 1 and 99 percent")
         self.enabled = False
         self.pin = None
         self.frequency = frequency
+        self.duty_cycle = duty_cycle
         self.driver = "disabled"
         self._thread = None
         self._stop_event = threading.Event()
@@ -182,7 +188,7 @@ class ActiveLowBuzzer:
                 errors.append(f"{name}: unknown driver")
                 continue
             try:
-                self.pin = pin_class(pin, frequency, active_low=True)
+                self.pin = pin_class(pin, frequency, active_low=True, duty_cycle=self.duty_cycle)
             except Exception as exc:
                 errors.append(f"{name}: {exc!r}")
                 continue
