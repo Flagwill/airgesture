@@ -24,8 +24,6 @@ htmlcov/
 .env
 .env.*
 
-# Captured sensor/data output
-captures/
 
 # OS/editor files
 .DS_Store
